@@ -1,4 +1,6 @@
-# Premium Chatbot (Next.js + FastAPI)
+# IoT Diagnostics Agent - Full Stack
+
+This project provides a Next.js frontend and a Python FastAPI backend for an IoT diagnostics agent that analyzes motor vehicle logs, detects anomalies, and explains statuses using a RAG pipeline with guardrails.
 
 An ultra-premium chat experience similar to ChatGPT/DeepSeek with:
 
@@ -7,9 +9,12 @@ An ultra-premium chat experience similar to ChatGPT/DeepSeek with:
 - File uploads: PDF, DOCX, PPTX, TXT, CSV, XLSX, Images (PNG/JPG)
 - OCR for images and photos (Tesseract)
 - Math OCR in images via optional Mathpix or Vision LLM
-- Pluggable LLM providers: OpenAI, DeepSeek, Ollama (local), Azure OpenAI
+- Pluggable LLM providers: OpenAI, DeepSeek, Ollama (local), Azure OpenAI, OpenRouter
 
-## Folder structure
+## Structure
+
+- `frontend/`: Next.js 14 app UI for chat + file upload
+- `backend/`: FastAPI service with LangChain RAG + Chroma Vector DB
 
 ```
 .
@@ -35,7 +40,14 @@ An ultra-premium chat experience similar to ChatGPT/DeepSeek with:
     └── requirements.txt
 ```
 
-## Prerequisites
+## Problem Statement Coverage
+
+1. Synthetic IoT datasets generated and stored in a Chroma vector DB
+2. Sample logs generator endpoint for testing scenarios
+3. LangChain-based agent that ingests status data and retrieves relevant context
+4. Logic to produce explanations and alerts
+5. User-friendly diagnostic messages in chat
+6. Guardrails at each stage to keep content in domain and safe
 
 - Node.js 18+ and npm
 - Python 3.10+
@@ -47,7 +59,10 @@ Optional for best math OCR:
 - Mathpix account (set `MATHPIX_APP_ID` and `MATHPIX_APP_KEY`)
 - Or Vision LLM (OpenAI): set `OPENAI_API_KEY` and choose a vision model (e.g., `gpt-4o-mini`) via `VISION_MODEL`.
 
-## Backend setup (FastAPI)
+## Prereqs
+
+- Python 3.10+
+- Node 18+
 
 Create a Python venv, install deps, and run the server:
 
@@ -68,6 +83,12 @@ export OPENAI_MODEL=gpt-4o-mini
 # export OPENAI_API_KEY=your_deepseek_key
 # export OPENAI_BASE_URL=https://api.deepseek.com
 # export OPENAI_MODEL=deepseek-chat
+# OpenRouter (many models via a single key)
+# export LLM_PROVIDER=openrouter
+# export OPENROUTER_API_KEY=your_openrouter_key
+# export OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+# export OPENROUTER_MODEL=openrouter/anthropic/claude-3.5-sonnet
+
 # Ollama (local)
 # export LLM_PROVIDER=ollama
 # export OLLAMA_MODEL=llama3.1:8b
@@ -85,7 +106,33 @@ export OPENAI_MODEL=gpt-4o-mini
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-## Frontend setup (Next.js)
+## Setup
+
+1. Backend environment
+
+- Copy `backend/.env.example` to `backend/.env` and set:
+  - `OPENROUTER_API_KEY` (store your secret here; do not hardcode)
+  - `OPENROUTER_BASE_URL=https://openrouter.ai/api/v1`
+  - `OPENROUTER_MODEL=openai/gpt-4o`
+- Install and run:
+
+```bash
+python -m venv .venv
+source .venv/Scripts/activate
+pip install -r backend/requirements.txt
+uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+2. Frontend
+
+- Copy `frontend/.env.local.example` to `frontend/.env.local` and set `NEXT_PUBLIC_API_URL=http://localhost:8000`
+- Install and run dev server:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
 ```bash
 # From repo root
@@ -98,6 +145,10 @@ The app will start at http://localhost:3000 and expects the backend at http://lo
 
 ## Usage
 
+1. Hit `POST /api/generate-dataset` to build the synthetic vector DB
+2. Optionally, fetch `POST /api/generate-sample-logs?count=5` to get sample text logs
+3. In the UI, type or upload `.txt` logs and click Send
+
 - Type a message and press Enter to chat with the LLM.
 - Drag-and-drop or use the attach button to upload files. Extracted text is appended as context for the next chat call.
 - Upload images containing text or math; if Mathpix or Vision model is configured, math expressions will be converted to LaTeX.
@@ -105,6 +156,9 @@ The app will start at http://localhost:3000 and expects the backend at http://lo
 ## Environment variables (backend)
 
 - LLM_PROVIDER: openai | deepseek | ollama | azureopenai
+- OPENROUTER_API_KEY: API key for OpenRouter
+- OPENROUTER_BASE_URL: API base for OpenRouter (default https://openrouter.ai/api/v1)
+- OPENROUTER_MODEL: e.g., openrouter/anthropic/claude-3.5-sonnet
 - OPENAI_API_KEY: API key for OpenAI/DeepSeek/Azure OpenAI
 - OPENAI_BASE_URL: optional base URL (e.g., https://api.deepseek.com)
 - OPENAI_MODEL: model name (e.g., gpt-4o-mini, gpt-4.1-mini, deepseek-chat)
@@ -113,7 +167,7 @@ The app will start at http://localhost:3000 and expects the backend at http://lo
 - VISION_MODEL: OpenAI vision-capable model for math OCR (e.g., gpt-4o-mini)
 - TESSERACT_CMD: path to tesseract executable on Windows
 
-## Notes
+- Keep your OpenRouter API key only in `.env` files. Never commit secrets.
 
 - For hackathons without internet, use Ollama for local inference and Tesseract for OCR.
 - Math OCR quality is best with Mathpix or a strong Vision LLM. Tesseract alone may struggle with complex equations.

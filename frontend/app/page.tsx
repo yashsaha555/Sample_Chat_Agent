@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Paperclip, Send, Sparkles } from "lucide-react";
 import Markdown from "../components/Markdown";
+import { generateDataset, generateSampleLogs } from "./api-helpers";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -82,13 +83,72 @@ export default function Page() {
           <div className="h-10 w-10 rounded-xl2 bg-accent/20 flex items-center justify-center shadow-glow">
             <Sparkles className="text-accent" size={20} />
           </div>
-          <div>
+          <div className="flex-1">
             <h1 className="text-2xl font-semibold tracking-tight">
               Premium Chatbot
             </h1>
             <p className="text-subt text-sm">
               Ultra-premium AI assistant with file + OCR + math
             </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              className="text-xs px-3 py-2 rounded-xl2 bg-card border border-white/10 hover:border-white/20"
+              onClick={async () => {
+                try {
+                  await generateDataset();
+                  setMessages((m) => [
+                    ...m,
+                    {
+                      role: "assistant",
+                      content:
+                        "Synthetic dataset generated and ingested into vector DB."
+                    }
+                  ]);
+                } catch (e: any) {
+                  setMessages((m) => [
+                    ...m,
+                    { role: "assistant", content: `Error: ${e.message}` }
+                  ]);
+                }
+              }}
+            >
+              Build Dataset
+            </button>
+            <button
+              className="text-xs px-3 py-2 rounded-xl2 bg-card border border-white/10 hover:border-white/20"
+              onClick={async () => {
+                try {
+                  const js = await generateSampleLogs(5);
+                  const ctx: string[] = (js.items || []).map(
+                    (it: any) => `# ${it.filename}\n${it.content}`
+                  );
+                  setFiles([]);
+                  const r = await fetch(`${API}/api/chat`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      message:
+                        "Analyze these sample IoT logs for anomalies and diagnostics.",
+                      context: ctx
+                    })
+                  });
+                  if (!r.ok) throw new Error("Chat failed");
+                  const js2 = await r.json();
+                  setMessages((m) => [
+                    ...m,
+                    { role: "assistant", content: js2.reply }
+                  ]);
+                } catch (e: any) {
+                  setMessages((m) => [
+                    ...m,
+                    { role: "assistant", content: `Error: ${e.message}` }
+                  ]);
+                }
+              }}
+            >
+              Try Sample Logs
+            </button>
           </div>
         </header>
 
@@ -99,7 +159,7 @@ export default function Page() {
           >
             {messages.length === 0 && (
               <div className="text-center text-subt mt-12">
-                Ask anything… or drop files to enrich context.
+                Enter / Upload your IoT Device Logs
               </div>
             )}
             {messages.map((m: Message, i: number) => (

@@ -1,60 +1,88 @@
 import os
-from fastapi import FastAPI, UploadFile, File, HTTPException
+import io
+import re
+import uuid
+from typing import List, Optional
+
+from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from typing import List
+from pydantic import BaseModel
+from dotenv import load_dotenv
 
-from .models.schemas import ChatRequest, ChatResponse, UploadResponse
-from .services.llm_providers import LLMClient, get_llm_client
-from .services.doc_processing import extract_text_from_file
-from .services.ocr import extract_text_from_image, extract_math_from_image
+from .rag import RAGAgent
+from .security import sanitize_text, is_in_domain
+from .utils import read_text_file
 
-app = FastAPI(title="Hackathon Chatbot API", version="0.1.0")
+load_dotenv()
 
+app = FastAPI(title="IoT Diagnostics Agent API")
+
+# CORS for local frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*"]
 )
 
+# Initialize RAG agent (lazy)
+_agent: Optional[RAGAgent] = None
 
-@app.get("/health")
-def health():
-    provider = os.getenv("LLM_PROVIDER", "unset")
-    return {"status": "ok", "provider": provider}
+def get_agent() -> RAGAgent:
+    global _agent
+    if _agent is None:
+        _agent = RAGAgent()
+    return _agent
 
+class ChatRequest(BaseModel):
+    message: str
+    context: Optional[List[str]] = None
 
-@app.post("/api/upload", response_model=UploadResponse)
-async def upload_files(files: List[UploadFile] = File(...)):
-    texts = []
+class ChatResponse(BaseModel):
+    reply: str
+
+@app.post("/api/upload")
+async def upload(files: List[UploadFile] = File(...)):
+    # Guardrail: file type and size limits
+    items = []
     for f in files:
-        try:
-            if f.content_type.startswith("image/"):
-                image_bytes = await f.read()
-                text = await extract_text_from_image(image_bytes)
-                # Try math extraction (best-effort)
-                math = await extract_math_from_image(image_bytes)
-                if math:
-                    text = text + "\n\n[Math OCR]\n" + math
-            else:
-                text = await extract_text_from_file(f)
-            texts.append({"filename": f.filename, "content": text})
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Failed to process {f.filename}: {e}")
-    return UploadResponse(items=texts)
-
+        if f.content_type not in ("text/plain", "application/octet-stream", "application/txt"):
+            continue
+        content_bytes = await f.read()
+        text = content_bytes.decode("utf-8", errors="ignore")
+        text = sanitize_text(text)
+        if not is_in_domain(text):
+            # Skip out-of-domain content
+            continue
+        items.append({"filename": f.filename, "content": text[:20000]})
+    return {"items": items}
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest):
-    try:
-        client: LLMClient = get_llm_client()
-        content = req.message
-        # Append uploaded text context if provided
-        if req.context:
-            content = content + "\n\nContext from files:\n" + "\n---\n".join(req.context)
-        result = await client.chat(content, system=req.system)
-        return ChatResponse(reply=result)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    message = sanitize_text(req.message or "")
+    if not is_in_domain(message):
+        return ChatResponse(reply="Your input appears outside vehicle IoT diagnostics. Please provide motor vehicle IoT logs or status queries.")
+
+    agent = get_agent()
+    # Merge any uploaded context chunks
+    context_docs = req.context or []
+
+    reply = agent.answer(message, context_docs=context_docs)
+    return ChatResponse(reply=reply)
+
+@app.post("/api/generate-dataset")
+async def generate_dataset():
+    agent = get_agent()
+    n = agent.build_and_ingest_synthetic_dataset()
+    return {"ingested": n}
+
+@app.post("/api/generate-sample-logs")
+async def generate_sample_logs(count: int = 5):
+    agent = get_agent()
+    items = agent.generate_sample_logs(count=count)
+    return {"items": items}
+
+@app.get("/api/health")
+async def health():
+    return {"status": "ok"}
