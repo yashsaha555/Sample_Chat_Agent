@@ -1,96 +1,101 @@
-# Premium Chatbot (Next.js + FastAPI)
+# Contextual Assistant - Full Stack
 
-An ultra-premium chat experience similar to ChatGPT/DeepSeek with:
+This project provides a Next.js frontend and a Python FastAPI backend for a grounded RAG chatbot. It embeds the any document into a persistent Chroma vector DB using FastEmbed, retrieves relevant chunks, and answers via OpenRouter. Guardrails keep answers within provided context and avoid hallucinations.
 
-- Next.js frontend (TypeScript) with elegant, polished UI
-- FastAPI backend (Python)
-- File uploads: PDF, DOCX, PPTX, TXT, CSV, XLSX, Images (PNG/JPG)
-- OCR for images and photos (Tesseract)
-- Math OCR in images via optional Mathpix or Vision LLM
-- Pluggable LLM providers: OpenAI, DeepSeek, Ollama (local), Azure OpenAI
+Features:
 
-## Folder structure
+- Next.js frontend (TypeScript) chat UI with file upload
+- FastAPI backend with Chroma + FastEmbed embeddings
+- OpenRouter LLM integration
+- Guardrails: context-only, retrieval gating, refusal on insufficient context
+
+## Structure
 
 ```
 .
-├── frontend/              # Next.js app (App Router, Tailwind)
+├── frontend/                  # Next.js app (App Router, Tailwind)
 │   ├── app/
+│   │   ├── page.tsx          # Chat UI calling backend endpoints
+│   │   └── api-helpers.ts    # API base + helpers
 │   ├── components/
-│   ├── public/
-│   ├── styles/
-│   ├── next.config.mjs
 │   ├── package.json
-│   ├── postcss.config.mjs
-│   ├── tailwind.config.ts
-│   └── tsconfig.json
-└── backend/               # FastAPI app
-    ├── app/
-    │   ├── main.py
-    │   ├── models/
-    │   │   └── schemas.py
-    │   └── services/
-    │       ├── doc_processing.py
-    │       ├── llm_providers.py
-    │       └── ocr.py
-    └── requirements.txt
+│   └── ...
+├── backend/
+│   ├── main.py               # FastAPI app + Chroma + FastEmbed + OpenRouter
+│   ├── requirements.txt
+│   └── chroma_db/            # created at runtime
 ```
 
-## Prerequisites
+## Problem Statement Coverage
 
-- Node.js 18+ and npm
-- Python 3.10+
-- Tesseract OCR installed (for image text). On Windows, download from: https://github.com/UB-Mannheim/tesseract/wiki
-  - After install, set environment variable `TESSERACT_CMD` to the installed tesseract.exe path (e.g., `C:\\Program Files\\Tesseract-OCR\\tesseract.exe`).
+1. Embed a file into a Chroma vector DB for context
+2. RAG chat using retrieved context plus any uploaded file text
+3. Concise, user-friendly answers with guardrails
+4. Refusal for out-of-scope or insufficient context
 
-Optional for best math OCR:
+## Setup & Run
 
-- Mathpix account (set `MATHPIX_APP_ID` and `MATHPIX_APP_KEY`)
-- Or Vision LLM (OpenAI): set `OPENAI_API_KEY` and choose a vision model (e.g., `gpt-4o-mini`) via `VISION_MODEL`.
+Backend (Windows PowerShell):
 
-## Backend setup (FastAPI)
+```powershell
+# From repo root
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r backend/requirements.txt
 
-Create a Python venv, install deps, and run the server:
+# Ensure backend/.env has OPENROUTER_API_KEY set
+uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+Backend (Git Bash):
 
 ```bash
 # From repo root
-cd "backend"
 python -m venv .venv
-source .venv/bin/activate || source .venv/Scripts/activate
-pip install -r requirements.txt
+source .venv/Scripts/activate
+pip install -r backend/requirements.txt
 
-# Environment (choose one provider)
-# OpenAI
-export LLM_PROVIDER=openai
-export OPENAI_API_KEY=your_key
-export OPENAI_MODEL=gpt-4o-mini
-# DeepSeek (OpenAI-compatible endpoint)
-# export LLM_PROVIDER=deepseek
-# export OPENAI_API_KEY=your_deepseek_key
-# export OPENAI_BASE_URL=https://api.deepseek.com
-# export OPENAI_MODEL=deepseek-chat
-# Ollama (local)
-# export LLM_PROVIDER=ollama
-# export OLLAMA_MODEL=llama3.1:8b
-
-# Optional: Math OCR
-# export MATHPIX_APP_ID=...
-# export MATHPIX_APP_KEY=...
-# or Vision LLM
-# export VISION_MODEL=gpt-4o-mini
-
-# Tesseract (Windows example)
-# export TESSERACT_CMD="C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
-
-# Run FastAPI
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-## Frontend setup (Next.js)
+## Backend environment
+
+- Copy `backend/.env.example` to `backend/.env` and set:
+  - `OPENROUTER_API_KEY` (required)
+  - Optional Windows cache helpers on first run:
+    - `FASTEMBED_CACHE_PATH=./backend/.cache/fastembed`
+    - `HF_HUB_DISABLE_SYMLINKS=1`
+
+## Using a different document
+
+- The bundled `Atomic habits ( PDFDrive ).pdf` is just an example. You can use any PDF/text file.
+- Place your file at the repo root (same level as `frontend/` and `backend/`). Then either:
+  - Rename your file to `Atomic habits ( PDFDrive ).pdf` to match the default path, or
+  - Edit `PDF_PATH` in `backend/main.py` to point to your file name, for example:
+
+```python
+# backend/main.py
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+PDF_PATH = os.path.join(PROJECT_ROOT, "MyDoc.pdf")
+```
+
+- Restart the backend and click "Build Dataset" in the UI to re-ingest your document.
+- You can also attach files in the chat UI; their extracted text is added as per-message context.
+
+## Frontend
+
+- Copy `frontend/.env.local.example` to `frontend/.env.local` and set `NEXT_PUBLIC_API_URL=http://localhost:8000`
+- Install and run dev server:
+
+```bash
+npm ci --prefix frontend
+npm run dev --prefix frontend
+```
 
 ```bash
 # From repo root
 cd "frontend"
-npm install
+npm ci
 npm run dev
 ```
 
@@ -98,27 +103,22 @@ The app will start at http://localhost:3000 and expects the backend at http://lo
 
 ## Usage
 
-- Type a message and press Enter to chat with the LLM.
-- Drag-and-drop or use the attach button to upload files. Extracted text is appended as context for the next chat call.
-- Upload images containing text or math; if Mathpix or Vision model is configured, math expressions will be converted to LaTeX.
+1. Click "Build Dataset" in the UI, or call `POST /api/generate-dataset` to embed the PDF into Chroma.
+2. Type your message or upload files; click Send. Responses are grounded to retrieved/uploaded context.
+
+Useful endpoints:
+
+- `GET /health` — server check
+- `GET /api/status` — diagnostics: PDF found, OpenRouter configured, collection exists, doc count
+- `POST /api/generate-dataset`
+- `POST /api/upload`
+- `POST /api/chat`
 
 ## Environment variables (backend)
 
-- LLM_PROVIDER: openai | deepseek | ollama | azureopenai
-- OPENAI_API_KEY: API key for OpenAI/DeepSeek/Azure OpenAI
-- OPENAI_BASE_URL: optional base URL (e.g., https://api.deepseek.com)
-- OPENAI_MODEL: model name (e.g., gpt-4o-mini, gpt-4.1-mini, deepseek-chat)
-- OLLAMA_MODEL: local model name (e.g., llama3.1:8b)
-- MATHPIX_APP_ID, MATHPIX_APP_KEY: Mathpix OCR credentials
-- VISION_MODEL: OpenAI vision-capable model for math OCR (e.g., gpt-4o-mini)
-- TESSERACT_CMD: path to tesseract executable on Windows
+- `OPENROUTER_API_KEY` (required)
+- `OPENROUTER_MODEL` (required)
+- `FASTEMBED_CACHE_PATH` (optional; set a local cache path on Windows)
+- `HF_HUB_DISABLE_SYMLINKS=1` (optional; reduces Windows symlink warnings)
 
-## Notes
-
-- For hackathons without internet, use Ollama for local inference and Tesseract for OCR.
-- Math OCR quality is best with Mathpix or a strong Vision LLM. Tesseract alone may struggle with complex equations.
-- This template is intentionally simple and hackathon-friendly. Extend with vector search, streaming, and auth as needed.
-
-## License
-
-MIT
+- Keep your OpenRouter API key only in `.env` files. Never commit secrets.

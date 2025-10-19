@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Paperclip, Send, Sparkles } from "lucide-react";
 import Markdown from "../components/Markdown";
+import { generateDataset } from "./api-helpers";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -82,13 +83,42 @@ export default function Page() {
           <div className="h-10 w-10 rounded-xl2 bg-accent/20 flex items-center justify-center shadow-glow">
             <Sparkles className="text-accent" size={20} />
           </div>
-          <div>
+          <div className="flex-1">
             <h1 className="text-2xl font-semibold tracking-tight">
-              Premium Chatbot
+              Contextual Assistant
             </h1>
-            <p className="text-subt text-sm">
-              Ultra-premium AI assistant with file + OCR + math
-            </p>
+            <p className="text-subt text-sm">RAG Based Assistant</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              className="text-xs px-3 py-2 rounded-xl2 bg-card border border-white/10 hover:border-white/20"
+              onClick={async () => {
+                try {
+                  await generateDataset();
+                  setMessages((m) => [
+                    ...m,
+                    {
+                      role: "assistant",
+                      content:
+                        "Synthetic dataset generated and ingested into vector DB."
+                    }
+                  ]);
+                } catch (e: unknown) {
+                  let errorMessage = "Unknown error";
+                  if (e instanceof Error) {
+                    errorMessage = e.message;
+                  } else if (typeof e === "string") {
+                    errorMessage = e;
+                  }
+                  setMessages((m) => [
+                    ...m,
+                    { role: "assistant", content: `Error: ${errorMessage}` }
+                  ]);
+                }
+              }}
+            >
+              Build Dataset
+            </button>
           </div>
         </header>
 
@@ -99,7 +129,7 @@ export default function Page() {
           >
             {messages.length === 0 && (
               <div className="text-center text-subt mt-12">
-                Ask anything… or drop files to enrich context.
+                Enter your query...
               </div>
             )}
             {messages.map((m: Message, i: number) => (
@@ -110,9 +140,9 @@ export default function Page() {
                 }`}
               >
                 <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-3 whitespace-pre-wrap leading-relaxed shadow/10 ${
+                  className={`max-w-[85%] rounded-2xl px-4 py-3 leading-relaxed shadow/10 ${
                     m.role === "user"
-                      ? "bg-accent text-white"
+                      ? "bg-accent text-white whitespace-pre-wrap"
                       : "bg-card text-text"
                   }`}
                 >

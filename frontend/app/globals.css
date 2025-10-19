@@ -46,3 +46,22 @@ body,
 .scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* Tighter markdown spacing inside chat bubbles */
+.prose p:first-child {
+  margin-top: 0.25rem;
+}
+.prose p:last-child {
+  margin-bottom: 0.25rem;
+}
+.prose p:empty {
+  display: none;
+}
+.prose ul,
+.prose ol {
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+.prose li > p {
+  margin: 0;
+}
