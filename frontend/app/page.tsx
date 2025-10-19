@@ -103,10 +103,16 @@ export default function Page() {
                         "Synthetic dataset generated and ingested into vector DB."
                     }
                   ]);
-                } catch (e: any) {
+                } catch (e: unknown) {
+                  let errorMessage = "Unknown error";
+                  if (e instanceof Error) {
+                    errorMessage = e.message;
+                  } else if (typeof e === "string") {
+                    errorMessage = e;
+                  }
                   setMessages((m) => [
                     ...m,
-                    { role: "assistant", content: `Error: ${e.message}` }
+                    { role: "assistant", content: `Error: ${errorMessage}` }
                   ]);
                 }
               }}
