@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Paperclip, Send, Sparkles } from "lucide-react";
 import Markdown from "../components/Markdown";
-import { generateDataset, generateSampleLogs } from "./api-helpers";
+import { generateDataset } from "./api-helpers";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -85,10 +85,10 @@ export default function Page() {
           </div>
           <div className="flex-1">
             <h1 className="text-2xl font-semibold tracking-tight">
-              Premium Chatbot
+              Contextual Assistant
             </h1>
             <p className="text-subt text-sm">
-              Ultra-premium AI assistant with file + OCR + math
+              RAG Based Assistant
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -115,40 +115,6 @@ export default function Page() {
             >
               Build Dataset
             </button>
-            <button
-              className="text-xs px-3 py-2 rounded-xl2 bg-card border border-white/10 hover:border-white/20"
-              onClick={async () => {
-                try {
-                  const js = await generateSampleLogs(5);
-                  const ctx: string[] = (js.items || []).map(
-                    (it: any) => `# ${it.filename}\n${it.content}`
-                  );
-                  setFiles([]);
-                  const r = await fetch(`${API}/api/chat`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      message:
-                        "Analyze these sample IoT logs for anomalies and diagnostics.",
-                      context: ctx
-                    })
-                  });
-                  if (!r.ok) throw new Error("Chat failed");
-                  const js2 = await r.json();
-                  setMessages((m) => [
-                    ...m,
-                    { role: "assistant", content: js2.reply }
-                  ]);
-                } catch (e: any) {
-                  setMessages((m) => [
-                    ...m,
-                    { role: "assistant", content: `Error: ${e.message}` }
-                  ]);
-                }
-              }}
-            >
-              Try Sample Logs
-            </button>
           </div>
         </header>
 
@@ -159,7 +125,7 @@ export default function Page() {
           >
             {messages.length === 0 && (
               <div className="text-center text-subt mt-12">
-                Enter / Upload your IoT Device Logs
+                Enter your query...
               </div>
             )}
             {messages.map((m: Message, i: number) => (

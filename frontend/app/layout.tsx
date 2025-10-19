@@ -9,8 +9,8 @@ const plusJakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata = {
-  title: "Premium Chatbot",
-  description: "Ultra-premium AI chat interface"
+  title: "Contextual Assistant",
+  description: "RAG Based Assistant"
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
