@@ -61,3 +61,6 @@ instance/
 uploads/
 tmp/
 temp/
+
+# --- Chroma DB ---
+backend/chroma_db

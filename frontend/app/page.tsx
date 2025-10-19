@@ -87,9 +87,7 @@ export default function Page() {
             <h1 className="text-2xl font-semibold tracking-tight">
               Contextual Assistant
             </h1>
-            <p className="text-subt text-sm">
-              RAG Based Assistant
-            </p>
+            <p className="text-subt text-sm">RAG Based Assistant</p>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -136,9 +134,9 @@ export default function Page() {
                 }`}
               >
                 <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-3 whitespace-pre-wrap leading-relaxed shadow/10 ${
+                  className={`max-w-[85%] rounded-2xl px-4 py-3 leading-relaxed shadow/10 ${
                     m.role === "user"
-                      ? "bg-accent text-white"
+                      ? "bg-accent text-white whitespace-pre-wrap"
                       : "bg-card text-text"
                   }`}
                 >
