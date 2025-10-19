@@ -259,7 +259,7 @@ def upload(files: List[UploadFile] = File(...)):
         content_text = ""
         try:
             data = uf.file.read()
-            if uf.filename.lower().endswith(".pdf"):
+            if uf.filename and uf.filename.lower().endswith(".pdf"):
                 content_text = extract_text_from_pdf(io.BytesIO(data))
             else:
                 try:
